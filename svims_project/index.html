@@ -614,34 +614,30 @@ html, body { height: 100%; font-family: 'Plus Jakarta Sans', sans-serif; backgro
         </div>
       </div>
 
-      <!-- CONTACTS TAB -->
+      <!-- CONTACTS TAB (numbers verified from www.svimi.org/contact-us.php) -->
       <div class="tab-panel" id="tab-contacts">
-        <div class="contact-card">
         <div class="contact-card">
           <div class="contact-card-title">Main Office</div>
           <div class="contact-row">📧 svimi@svimi.org</div>
-          <div class="contact-row">📞 +91-731-2789925</div>
-          <div class="contact-row">🆓 1800-233-2601</div>
+          <div class="contact-row">📞 +91-731-2780011, 2789925</div>
+          <div class="contact-row">📞 +91-731-2382962</div>
+          <div class="contact-row">🆓 Toll Free: 1800-233-2601</div>
+          <div class="contact-row">📍 Scheme No.71, Gumasta Nagar, Indore</div>
         </div>
         <div class="contact-card">
-          <div class="contact-card-title">Admission</div>
+          <div class="contact-card-title">Admission Enquiry</div>
           <div class="contact-row">📧 admission@svimi.org</div>
-          <div class="contact-row">📞 9329912587 (UG)</div>
+          <div class="contact-row">📞 9329912587 (UG Programmes)</div>
           <div class="contact-row">📞 9329912582 (MBA)</div>
+          <div class="contact-row">📞 9329912586 (MCA)</div>
           <div class="contact-row">💬 WhatsApp: 9329912587</div>
-        </div>
-        <div class="contact-card">
-          <div class="contact-card-title">Emergency & Support</div>
-          <div class="contact-row">🏥 Medical: 9301527178</div>
-          <div class="contact-row">🤝 Student Welfare: 7312580137</div>
-          <div class="contact-row">📝 Exam Controller: 7312518030</div>
-          <div class="contact-row">📞 Enquiry: 7312580157</div>
         </div>
         <div class="contact-card">
           <div class="contact-card-title">Online Portals</div>
           <div class="contact-row">🎓 Student ERP: accsoft.svimi.org</div>
           <div class="contact-row">💰 Fee Payment: accsoft.svimi.org</div>
-          <div class="contact-row">📚 LMS: accsoft.svimi.org</div>
+          <div class="contact-row">📊 Results: www.svimi.org/Results.php</div>
+          <div class="contact-row">🔔 Notices: www.svimi.org/Notification.php</div>
         </div>
       </div>
 
@@ -659,14 +655,14 @@ html, body { height: 100%; font-family: 'Plus Jakarta Sans', sans-serif; backgro
         <div class="event-row"><div class="event-month" style="color:#A78BFA">May</div><div><div class="event-name">Final Exams</div><div class="event-type">Academics</div></div><div class="event-dot" style="background:#A78BFA"></div></div>
       </div>
 
-      <!-- MAP TAB -->
+      <!-- MAP TAB (embed API-key ke bina — place query embed) -->
       <div class="tab-panel" id="tab-map">
         <div class="map-frame">
-          <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3679.8!2d75.8577!3d22.7196!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3962fd24c9f2e5e5%3A0x5f5b6b6b6b6b6b6b!2sShri%20Vaishnav%20Institute%20of%20Management%20%26%20Science!5e0!3m2!1sen!2sin!4v1234567890" width="100%" height="170" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+          <iframe src="https://maps.google.com/maps?q=Shri%20Vaishnav%20Institute%20of%20Management%20%26%20Science%20Gumasta%20Nagar%20Indore&t=&z=15&ie=UTF8&iwloc=&output=embed" width="100%" height="170" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
         </div>
         <div style="font-size:11.5px;color:rgba(255,255,255,0.45);line-height:1.6;margin-bottom:12px;">📍 Scheme No.71, Gumasta Nagar<br>Indore – 452009, Madhya Pradesh</div>
-        <a href="https://clickeffect.co.in/svims" target="_blank" class="map-btn map-btn-tour">🏛️ Virtual Campus Tour</a>
-        <a href="https://maps.google.com/?q=Shri+Vaishnav+Institute+Management+Science+Indore" target="_blank" class="map-btn map-btn-gmaps">🗺️ Open in Google Maps</a>
+        <a href="https://clickeffect.co.in/svim/" target="_blank" class="map-btn map-btn-tour">🏛️ Virtual Campus Tour</a>
+        <a href="https://maps.google.com/?q=Shri+Vaishnav+Institute+Management+Science+Gumasta+Nagar+Indore" target="_blank" class="map-btn map-btn-gmaps">🗺️ Open in Google Maps</a>
       </div>
 
     </div><!-- end sidebar-content -->
@@ -704,7 +700,7 @@ html, body { height: 100%; font-family: 'Plus Jakarta Sans', sans-serif; backgro
         <!-- Welcome Card -->
         <div class="welcome-card" id="welcome-card">
           <div class="welcome-title">👋 Hello! I'm SVIMS CampusBot</div>
-          <div class="welcome-sub">Your intelligent campus assistant for Shri Vaishnav Institute of Management & Science, Indore. Ask me anything — I'm here to help 24/7!</div>
+          <div class="welcome-sub">Your intelligent campus assistant for Shri Vaishnav Institute of Management & Science, Indore. All information comes directly from the official college website www.svimi.org — ask me anything!</div>
           <div class="welcome-chips">
             <span class="chip" onclick="sendQ('What courses does SVIMS offer?')">🎓 Courses</span>
             <span class="chip" onclick="sendQ('What is the admission process?')">📝 Admission</span>
@@ -744,7 +740,9 @@ html, body { height: 100%; font-family: 'Plus Jakarta Sans', sans-serif; backgro
 // =============================================
 // CONFIG
 // =============================================
-const API_URL = "http://127.0.0.1:5000/api/chat";
+// FIX: pehle http://127.0.0.1:5000 hardcoded tha — deploy/preview pe toot jaata tha.
+// Relative URL = jo bhi host serve kare, wahi kaam karega.
+const API_URL = "/api/chat";
 const SESSION_ID = "session_" + Math.random().toString(36).slice(2,10);
 let isLoading = false;
 let chatHistory = [];
@@ -759,22 +757,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function checkServerStatus() {
   try {
-    const res = await fetch(API_URL.replace("/api/chat", "/"), {method:"GET"});
-    setStatus(true);
+    // /api/status poll karo — poora health report milta hai
+    const res = await fetch("/api/status", {method:"GET"});
+    if (!res.ok) throw new Error("bad status");
+    const data = await res.json();
+    setStatus(true, data);
   } catch {
-    setStatus(false);
+    setStatus(false, null);
     setTimeout(checkServerStatus, 5000);
   }
 }
 
-function setStatus(online) {
+function setStatus(online, data) {
   const dot = document.getElementById("status-dot");
   const text = document.getElementById("status-text");
   const badge = document.getElementById("live-badge");
   if (online) {
+    let label = "Online & Ready";
+    if (data && data.kb_loading) label = "Loading knowledge...";
+    else if (data && !data.groq_configured) label = "Basic Mode (no AI key)";
     dot.style.background = "#4ADE80";
     dot.style.boxShadow = "0 0 8px #4ADE80";
-    text.textContent = "Online & Ready";
+    text.textContent = label;
     badge.textContent = "Active";
     badge.style.background = "#ECFDF5";
     badge.style.color = "#065F46";
@@ -836,8 +840,8 @@ async function sendMessage() {
 
   } catch (err) {
     removeTyping(typingId);
-    appendBubble("bot", "⚠️ Could not connect to the server. Please make sure the Python server is running.\n\n📧 svimi@svimi.org | 📞 0731-2789925");
-    setStatus(false);
+    appendBubble("bot", "⚠️ Could not connect to the server. Please make sure the Python server is running.\n\n📧 svimi@svimi.org | 🆓 1800-233-2601");
+    setStatus(false, null);
   }
 
   btn.disabled = false;

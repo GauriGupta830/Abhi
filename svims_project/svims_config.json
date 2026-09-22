@@ -1,8 +1,13 @@
 {
-  "_comment": "=== SVIMS CampusBot Config === Yahan se sab update karo — engine.py touch mat karo ===",
+  "_comment": "=== SVIMS CampusBot Config === Sirf yahan se update karo — engine/facts files touch mat karo. Change ke baad server restart ya POST /api/reload-config.",
 
-  "show_staff_phones": false,
-  "_show_staff_phones_note": "false = HOD/Director ke phone numbers chatbot answer mein nahi aayenge (privacy). true = aayenge.",
+  "groq_models": [
+    "llama-3.1-8b-instant",
+    "llama-3.3-70b-versatile",
+    "openai/gpt-oss-20b",
+    "meta-llama/llama-4-scout-17b-16e-instruct"
+  ],
+  "_groq_models_note": "Groq ke current chat models. Koi model retire ho jaye to engine usse blacklist karke agla try karta hai — yahan se bhi hata sakte ho.",
 
   "academic_calendar": {
     "year": "2025-26",
@@ -11,7 +16,7 @@
   },
 
   "syllabus_links": {
-    "_update_note": "Naya semester PDF aaye to idhar add karo aur engine restart karo",
+    "_update_note": "Naya semester PDF college website pe aaye to idhar add karo",
     "bca": [
       {"label": "BCA I Year", "link": "https://www.svimi.org/assets/images/BCA_I_Year_Syllabus.pdf"}
     ],
@@ -26,10 +31,10 @@
       {"label": "MBA Marketing Management", "link": "https://www.svimi.org/assets/images/MBA_MM_Syllabus.pdf"}
     ],
     "mca": [
-      {"label": "MCA Syllabus", "link": "https://www.svimi.org/assets/images/MCA_Syllabus.pdf"}
+      {"label": "MCA", "link": "https://www.svimi.org/assets/images/MCA_Syllabus.pdf"}
     ],
     "msc_cs": [
-      {"label": "M.Sc. CS Syllabus", "link": "https://www.svimi.org/assets/images/M.Sc.CS_Syllabus.pdf"}
+      {"label": "M.Sc. CS", "link": "https://www.svimi.org/assets/images/M.Sc.CS_Syllabus.pdf"}
     ],
     "bsc_cs": [
       {"label": "B.Sc. Computer Science I Year", "link": "https://www.svimi.org/assets/images/B.%20Sc._(CS)_I_Year_Syllabus.pdf"}
@@ -53,36 +58,11 @@
     "faculty": "https://www.svimi.org/assets/images/achievements/Faculty_Other_Achievement_2024-25.pdf"
   },
 
-  "fees": {
-    "_update_note": "Fees change hone par sirf idhar badlo",
-    "bba_per_year": "Rs. 80,000",
-    "bca_per_year": "Rs. 60,000",
-    "bsc_per_year": "Rs. 40,000",
-    "mba_dual_per_sem": "Rs. 43,000",
-    "mba_fa_per_sem": "Rs. 40,500",
-    "mba_mm_per_sem": "Rs. 30,000",
-    "mca_per_sem": "Rs. 27,500",
-    "msc_cs_per_year": "Rs. 40,000",
-    "caution_money_bba_bca_mba_mca_msc": "Rs. 1,500 (refundable)",
-    "caution_money_bsc": "Rs. 2,000 (refundable)"
-  },
-
-  "attendance_rule": "Minimum 75% in EACH subject — ALL courses",
-
-  "groq_models": [
-    "llama-3.1-8b-instant",
-    "gemma2-9b-it",
-    "llama3-8b-8192",
-    "llama-3.3-70b-versatile"
-  ],
-  "_groq_models_note": "Groq free tier pe ye stable hain. Koi expire ho jaye to idhar se hata do aur naya add karo. Engine restart karo.",
-
-  "custom_links": {
-    "_usage_note": "Naya keyword-link pair add karna ho to idhar daalo — engine.py touch mat karo. Reload-config ya restart karo.",
-    "placement_glimpse": {
-      "keywords": ["placement glimps", "placement glimpse", "placement gallery", "placement photos"],
-      "link": "https://www.svimi.org/placement/placement.php",
-      "label": "Placement Glimpse"
-    }
+  "scraper": {
+    "request_timeout": 12,
+    "delay_between_requests": 0.4,
+    "max_page_chars": 8000,
+    "auto_refresh_hours": 12,
+    "_note": "Website scraping settings. auto_refresh_hours: kitne ghante baad dynamic pages (notifications/results/events) dobara scrape ho."
   }
 }

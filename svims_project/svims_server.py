@@ -1,136 +1,194 @@
+"""
+SVIMS CampusBot — Flask Server (single entry point)
+===================================================
+PURANE CODE KI PROBLEM:
+  — DO server files thi (svims_app.py + svims_server.py) — svims_app.py
+    templates/index.html dhundta tha jo exist hi nahi karti (crash)
+  — /api/reload-config aise functions call karta tha jo engine mein the hi nahi
+
+NAYA SERVER:
+  — Ek hi file, ek hi entry point
+  — Background initialization (server turant start hota hai, KB saath mein load)
+  — /api/status → poora health report (groq, KB, scrape info)
+  — /api/chat → engine.get_answer (history ke saath)
+  — /api/reload-config → ab sach mein kaam karta hai
+  — /api/refresh-knowledge → dynamic pages dobara scrape (admin)
+  — Bina Groq key / bina internet pe bhi server chalta hai (graceful)
+"""
+
 import os
+import threading
+
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(dotenv_path=os.path.join(BASE_DIR, ".env"))
 load_dotenv()
 
-from svims_processor import load_knowledge_base, create_knowledge_base
-from svims_engine import create_chatbot, get_answer
+import svims_engine
+import svims_scraper
 
-app = Flask(__name__, static_folder=".")
+app = Flask(__name__, static_folder=BASE_DIR)
 CORS(app)
 
-print("⚙️  SVIMS CampusBot Server starting...")
-v_store = load_knowledge_base()
-if v_store is None:
-    print("🔄 Building fresh knowledge base...")
-    v_store = create_knowledge_base()
+# ─────────────────────────────────────────────
+# STATE
+# ─────────────────────────────────────────────
+_vector_store = None
+_init_done = False
+_init_error = None
+_init_lock = threading.Lock()
+_SESSIONS = {}
+_MAX_HISTORY = 24  # messages (12 turns)
 
-bot_chain = create_chatbot(v_store)
-session_histories = {}
-print("✅ Server ready!")
+
+def _background_init():
+    """Knowledge base background mein load/build karo — server block nahi hota."""
+    global _vector_store, _init_done, _init_error
+    try:
+        print("🎓 SVIMS CampusBot: knowledge base loading...")
+        _vector_store = svims_scraper.ensure_knowledge_base(crawl_first=True, quiet=False)
+        if _vector_store is not None:
+            print("✅ Knowledge base ready (facts + scraped website pages)")
+        else:
+            print("⚠️ FAISS index nahi ban saka — facts-only mode "
+                  "(deterministic answers still work)")
+    except Exception as e:
+        _init_error = str(e)
+        print(f"🚨 KB init error: {_init_error}")
+    finally:
+        _init_done = True
 
 
+# ─────────────────────────────────────────────
+# ROUTES
+# ─────────────────────────────────────────────
 @app.route("/")
 def index():
-    return send_from_directory(".", "index.html")
+    return send_from_directory(BASE_DIR, "index.html")
+
+
+@app.route("/api/status")
+def status():
+    st = {
+        "status": "online",
+        "bot": "SVIMS CampusBot",
+        "version": "3.0",
+        "ready": True,
+        "groq_configured": svims_engine.groq_ready(),
+        "kb_ready": _vector_store is not None,
+        "kb_loading": not _init_done,
+        "init_error": _init_error,
+    }
+    try:
+        st["knowledge"] = svims_scraper.status()
+    except Exception:
+        pass
+    return jsonify(st)
 
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
-    data = request.json or {}
-    user_msg = data.get("message", "").strip()
-    session_id = data.get("session_id", "default")
+    data = request.get_json(force=True, silent=True) or {}
+    message = (data.get("message") or "").strip()
+    session_id = data.get("session_id") or "default"
 
-    if not user_msg:
-        return jsonify({"error": "Empty message"}), 400
+    if not message:
+        return jsonify({"response": "Please type a question."}), 400
+    if len(message) > 600:
+        message = message[:600]
 
-    if session_id not in session_histories:
-        session_histories[session_id] = []
+    history = _SESSIONS.setdefault(session_id, [])
 
-    history = session_histories[session_id]
+    answer = svims_engine.get_answer(message, _vector_store, history)
 
-    # ✅ History pass karo — context maintain hoga
-    answer = get_answer(bot_chain, user_msg, history)
-
-    history.append({"role": "user", "content": user_msg})
-    history.append({"role": "assistant", "content": answer})
-
-    if len(history) > 10:
-        session_histories[session_id] = history[-10:]
+    history.append({"role": "user", "content": message})
+    history.append({"role": "bot", "content": answer})
+    if len(history) > _MAX_HISTORY:
+        del history[: len(history) - _MAX_HISTORY]
 
     return jsonify({"response": answer})
 
 
-@app.route("/api/status", methods=["GET"])
-def status():
-    return jsonify({"status": "online", "bot": "SVIMS CampusBot", "version": "2.0"})
+@app.route("/api/clear", methods=["POST"])
+def clear():
+    data = request.get_json(force=True, silent=True) or {}
+    session_id = data.get("session_id") or "default"
+    _SESSIONS.pop(session_id, None)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/reload-config", methods=["POST"])
 def reload_config():
-    """
-    Config hot-reload — bina server restart ke svims_config.json ke changes
-    apply ho jaate hain. Fees, calendar link, achievement links, syllabus links,
-    show_staff_phones — sab reload ho jaata hai.
-
-    Use: browser ya terminal se POST request bhejo:
-      curl -X POST http://127.0.0.1:5000/api/reload-config
-    Ya index.html mein ek hidden admin button bana sakte ho.
-    """
+    """svims_config.json hot-reload — ab sach mein kaam karta hai."""
     try:
-        import svims_engine as eng
-        import importlib
-        # Config file dobara padhte hain
-        new_cfg = eng._load_config()
-        eng.CFG = new_cfg
-        eng.SHOW_STAFF_PHONES    = new_cfg.get("show_staff_phones", False)
-        eng.ACADEMIC_CALENDAR    = new_cfg.get("academic_calendar", eng.ACADEMIC_CALENDAR)
-        eng.SYLLABUS_CFG         = new_cfg.get("syllabus_links", {})
-        eng.ACHIEVEMENT_CFG      = new_cfg.get("achievement_links", {})
-        eng.FEES_CFG             = new_cfg.get("fees", {})
-        eng.MODELS_TO_TRY        = new_cfg.get("groq_models", eng.MODELS_TO_TRY)
-        # Blacklist reset karo — naye models tryable ho jaayein
-        eng._BLACKLISTED_MODELS.clear()
-        eng._LIVE_MODELS_CACHE = []
-        # Dependent data rebuild karo
-        eng.SYLLABUS_ANSWERS     = eng._build_syllabus_answers()
-        eng.ALL_SYLLABUS_ANSWER  = eng._build_all_syllabus_text()
-        eng._build_faculty_answers()
-        # Response cache clear karo taaki purane answers serve na hon
-        eng._CACHE.clear()
+        svims_engine.reload_config()
         return jsonify({
             "status": "reloaded",
-            "show_staff_phones": eng.SHOW_STAFF_PHONES,
-            "calendar_year": eng.ACADEMIC_CALENDAR.get("year"),
-            "student_achievement_year": eng.ACHIEVEMENT_CFG.get("student_year"),
-            "models": eng.MODELS_TO_TRY,
-            "message": "✅ Config reloaded — changes active immediately (no restart needed)"
+            "models": svims_engine.MODELS_TO_TRY,
+            "calendar_year": svims_engine.ACADEMIC_CALENDAR.get("year"),
+            "message": "✅ Config reloaded — no restart needed",
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/refresh-knowledge", methods=["POST"])
+def refresh_knowledge():
+    """Dynamic pages (notifications/results/time tables/events) dobara scrape
+    karo aur FAISS index rebuild karo. Admin use ke liye.
+
+    Robust: scrape ya rebuild fail ho to bhi server purane index se chalta
+    rehta hai — dono stages ka result alag-alag report hota hai.
+    """
+    global _vector_store
+    scrape_ok, rebuild_ok, err = True, True, None
+    try:
+        svims_scraper.refresh_dynamic()
+    except Exception as e:
+        scrape_ok = False
+        err = str(e)
+    try:
+        new_vs = svims_scraper.rebuild_after_refresh()
+        if new_vs is not None:
+            _vector_store = new_vs
+        else:
+            rebuild_ok = False
+    except Exception as e:
+        rebuild_ok = False
+        err = err or str(e)
+
+    if scrape_ok and rebuild_ok:
+        return jsonify({"status": "refreshed",
+                        "knowledge": svims_scraper.status(),
+                        "message": "✅ Dynamic pages re-scraped + index rebuilt"})
+    if scrape_ok and not rebuild_ok:
+        return jsonify({"status": "partial",
+                        "knowledge": svims_scraper.status(),
+                        "message": "⚠️ Pages scraped, but index rebuild failed "
+                                   "(embedding model?) — old index still serving"})
+    return jsonify({"status": "error", "message": err or "scrape+rebuild failed"}), 500
 
 
 @app.route("/api/model-status", methods=["GET"])
 def model_status():
-    """Kaunse models active hain, kaunse blacklist mein hain — status check."""
-    try:
-        import svims_engine as eng
-        return jsonify({
-            "configured_models": eng.MODELS_TO_TRY,
-            "blacklisted": list(eng._BLACKLISTED_MODELS),
-            "active_models": eng._get_active_models(),
-            "live_models_cached": eng._LIVE_MODELS_CACHE,
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({
+        "configured_models": svims_engine.MODELS_TO_TRY,
+        "blacklisted": list(svims_engine._BLACKLISTED_MODELS),
+        "groq_keys": len(svims_engine.GROQ_API_KEYS),
+    })
 
 
-
-@app.route("/api/rebuild", methods=["POST"])
-def rebuild():
-    """Knowledge base rebuild karo (admin use)"""
-    global v_store, bot_chain
-    try:
-        v_store = create_knowledge_base()
-        bot_chain = create_chatbot(v_store)
-        return jsonify({"status": "rebuilt", "message": "Knowledge base rebuilt successfully"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
+# ─────────────────────────────────────────────
+# STARTUP
+# ─────────────────────────────────────────────
+print("⚙️  SVIMS CampusBot Server starting...")
+print(f"   Groq API keys: {len(svims_engine.GROQ_API_KEYS)} "
+      f"({'✅' if svims_engine.groq_ready() else '⚠️ none — set GROQ_API_KEY_1 in .env'})")
+threading.Thread(target=_background_init, daemon=True).start()
 
 if __name__ == "__main__":
-    print("🚀 Server: http://127.0.0.1:5000")
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    # Production: gunicorn -w 1 -b 0.0.0.0:5000 svims_server:app
+    app.run(host="0.0.0.0", port=5000, debug=False)

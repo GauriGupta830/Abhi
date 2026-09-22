@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.pyc
+venv/
+.venv/
+faiss_index/
+svims_qa_cache.pkl
+*.pkl
+.DS_Store
+Thumbs.db
+college_docs/

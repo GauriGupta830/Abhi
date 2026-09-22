@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SVIMS CampusBot — AI Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<style>
+/* ============================================
+   ROOT VARIABLES — SVIMS THEME
+   ============================================ */
+:root {
+  --maroon:       #7B1C1C;
+  --maroon-dark:  #5A1010;
+  --maroon-deep:  #3D0A0A;
+  --maroon-light: #9B2C2C;
+  --gold:         #C9A84C;
+  --gold-light:   #E8C96A;
+  --gold-pale:    #FDF3DC;
+  --white:        #FFFFFF;
+  --off-white:    #FAF7F4;
+  --surface:      #FFFFFF;
+  --bg:           #F5F0EC;
+  --border:       rgba(123,28,28,0.12);
+  --text:         #2D1A1A;
+  --text-soft:    #6B4A4A;
+  --text-muted:   #A08080;
+  --shadow-sm:    0 1px 4px rgba(123,28,28,0.08);
+  --shadow-md:    0 4px 18px rgba(123,28,28,0.12);
+  --shadow-lg:    0 10px 40px rgba(123,28,28,0.16);
+  --r-sm:         8px;
+  --r-md:         14px;
+  --r-lg:         20px;
+  --r-xl:         28px;
+}
+
+/* ============================================
+   RESET & BASE
+   ============================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+
+/* ============================================
+   LAYOUT
+   ============================================ */
+.app { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
+
+/* ============================================
+   SIDEBAR
+   ============================================ */
+.sidebar {
+  width: 300px;
+  min-width: 300px;
+  background: linear-gradient(180deg, var(--maroon-deep) 0%, var(--maroon-dark) 50%, #4A0E0E 100%);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(201,168,76,0.15);
+  box-shadow: 4px 0 24px rgba(61,10,10,0.3);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  z-index: 100;
+}
+
+/* Sidebar Brand */
+.sidebar-brand {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid rgba(201,168,76,0.15);
+  background: rgba(0,0,0,0.2);
+}
+.brand-logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.brand-logo {
+  width: 52px; height: 52px;
+  border-radius: 12px;
+  border: 2px solid rgba(201,168,76,0.4);
+  object-fit: contain;
+  background: white;
+  padding: 3px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.brand-text-title {
+  font-family: 'Sora', sans-serif;
+  font-size: 15px; font-weight: 700;
+  color: white; line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.brand-text-sub {
+  font-size: 10.5px; color: rgba(201,168,76,0.8);
+  font-weight: 500; margin-top: 2px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.status-badge {
+  display: flex; align-items: center; gap: 7px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(201,168,76,0.2);
+  border-radius: 99px; padding: 5px 12px;
+  font-size: 11px; color: rgba(255,255,255,0.75);
+  font-weight: 500;
+}
+.status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #4ADE80;
+  box-shadow: 0 0 8px #4ADE80;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* Sidebar Tabs */
+.sidebar-tabs {
+  display: flex; border-bottom: 1px solid rgba(201,168,76,0.15);
+  background: rgba(0,0,0,0.15);
+}
+.stab {
+  flex: 1; padding: 10px 6px;
+  text-align: center;
+  font-size: 11px; font-weight: 600;
+  color: rgba(255,255,255,0.45);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.stab:hover { color: rgba(255,255,255,0.75); }
+.stab.active { color: var(--gold-light); border-bottom-color: var(--gold); }
+
+/* Sidebar Content */
+.sidebar-content { flex: 1; overflow-y: auto; padding: 16px; }
+.sidebar-content::-webkit-scrollbar { width: 4px; }
+.sidebar-content::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.2); border-radius: 99px; }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Section Label */
+.section-label {
+  font-size: 9.5px; font-weight: 700;
+  color: rgba(201,168,76,0.6);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  margin: 14px 0 8px;
+}
+
+/* Quick Q buttons */
+.quick-btn {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--r-sm); padding: 9px 11px;
+  color: rgba(255,255,255,0.78); font-size: 12px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  cursor: pointer; text-align: left; margin-bottom: 5px;
+  transition: all 0.18s ease;
+}
+.quick-btn:hover {
+  background: rgba(201,168,76,0.1);
+  border-color: rgba(201,168,76,0.25);
+  color: var(--gold-light);
+  transform: translateX(3px);
+}
+.quick-btn i { color: var(--gold); font-size: 11px; width: 14px; }
+
+/* Expander */
+.expander { margin-bottom: 6px; }
+.exp-header {
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--r-sm); padding: 9px 12px;
+  cursor: pointer; color: rgba(255,255,255,0.78);
+  font-size: 12px; font-weight: 600;
+  transition: all 0.18s;
+}
+.exp-header:hover { background: rgba(201,168,76,0.08); color: var(--gold-light); }
+.exp-header i.chevron { font-size: 10px; transition: transform 0.2s; }
+.exp-header.open i.chevron { transform: rotate(90deg); }
+.exp-body { display: none; padding: 6px 0 2px 6px; }
+.exp-body.open { display: block; }
+
+/* Contact cards */
+.contact-card {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--r-sm); padding: 11px 13px;
+  margin-bottom: 8px;
+}
+.contact-card-title {
+  font-size: 9.5px; font-weight: 700;
+  color: rgba(201,168,76,0.7);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+.contact-row { font-size: 12px; color: rgba(255,255,255,0.75); padding: 2px 0; }
+
+/* Event row */
+.event-row {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px; padding: 8px 11px; margin-bottom: 5px;
+}
+.event-month { font-size: 9px; font-weight: 700; min-width: 28px; text-transform: uppercase; letter-spacing: 0.05em; }
+.event-name { font-size: 12px; color: rgba(255,255,255,0.85); font-weight: 500; }
+.event-type { font-size: 10px; color: rgba(255,255,255,0.38); }
+.event-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; margin-left: auto; }
+
+/* Map */
+.map-frame { border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+.map-btn {
+  display: block; border-radius: 8px; padding: 9px 12px;
+  text-align: center; text-decoration: none; font-size: 12.5px;
+  font-weight: 500; margin-bottom: 6px; transition: opacity 0.2s;
+}
+.map-btn:hover { opacity: 0.85; }
+.map-btn-tour { background: rgba(37,99,235,0.22); border: 1px solid rgba(37,99,235,0.38); color: #93C5FD; }
+.map-btn-gmaps { background: rgba(16,185,129,0.18); border: 1px solid rgba(16,185,129,0.32); color: #6EE7B7; }
+
+/* Sidebar Actions */
+.sidebar-actions {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(201,168,76,0.12);
+  display: flex; gap: 8px;
+}
+.action-btn {
+  flex: 1; padding: 8px 10px;
+  border-radius: var(--r-sm); font-size: 11.5px; font-weight: 600;
+  cursor: pointer; border: none; font-family: 'Plus Jakarta Sans', sans-serif;
+  transition: all 0.18s;
+}
+.action-btn-clear {
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.25);
+  color: #FCA5A5;
+}
+.action-btn-clear:hover { background: rgba(239,68,68,0.2); }
+.action-btn-save {
+  background: rgba(201,168,76,0.12);
+  border: 1px solid rgba(201,168,76,0.25);
+  color: var(--gold-light);
+}
+.action-btn-save:hover { background: rgba(201,168,76,0.22); }
+
+/* ============================================
+   MAIN CHAT AREA
+   ============================================ */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+
+/* Header */
+.chat-header {
+  padding: 0 24px;
+  height: 68px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: white;
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+.header-left { display: flex; align-items: center; gap: 14px; }
+.header-icon {
+  width: 42px; height: 42px;
+  background: linear-gradient(135deg, var(--maroon), var(--maroon-light));
+  border-radius: 11px; display: flex; align-items: center;
+  justify-content: center; font-size: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.header-title {
+  font-family: 'Sora', sans-serif;
+  font-size: 17px; font-weight: 700;
+  color: var(--maroon-dark); letter-spacing: -0.02em;
+}
+.header-title span { color: var(--gold); }
+.header-sub { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.live-badge {
+  display: flex; align-items: center; gap: 6px;
+  background: #ECFDF5; border: 1px solid #A7F3D0;
+  border-radius: 99px; padding: 5px 13px;
+  font-size: 11.5px; color: #065F46; font-weight: 600;
+}
+.live-badge::before {
+  content: ''; width: 7px; height: 7px;
+  background: #10B981; border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+.hamburger {
+  display: none; background: none; border: none;
+  font-size: 20px; cursor: pointer; color: var(--maroon);
+  padding: 6px;
+}
+
+/* Messages */
+.messages-area {
+  flex: 1; overflow-y: auto; padding: 24px;
+}
+.messages-area::-webkit-scrollbar { width: 5px; }
+.messages-area::-webkit-scrollbar-thumb { background: rgba(123,28,28,0.15); border-radius: 99px; }
+
+.messages-inner { max-width: 780px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+/* Welcome Card */
+.welcome-card {
+  background: linear-gradient(135deg, var(--maroon-dark) 0%, var(--maroon) 60%, #8B2020 100%);
+  border-radius: var(--r-xl); padding: 28px 30px;
+  box-shadow: var(--shadow-lg); position: relative; overflow: hidden;
+}
+.welcome-card::before {
+  content: ''; position: absolute; top: -50px; right: -50px;
+  width: 200px; height: 200px;
+  background: rgba(201,168,76,0.1); border-radius: 50%;
+}
+.welcome-card::after {
+  content: ''; position: absolute; bottom: -60px; left: 30px;
+  width: 180px; height: 180px;
+  background: rgba(255,255,255,0.04); border-radius: 50%;
+}
+.welcome-title {
+  font-family: 'Sora', sans-serif; font-size: 20px; font-weight: 700;
+  color: white; margin-bottom: 8px; position: relative; z-index: 1;
+}
+.welcome-sub {
+  font-size: 13.5px; color: rgba(255,255,255,0.65);
+  line-height: 1.6; margin-bottom: 20px; position: relative; z-index: 1;
+}
+.welcome-chips { display: flex; flex-wrap: wrap; gap: 8px; position: relative; z-index: 1; }
+.chip {
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.85); border-radius: 99px;
+  padding: 5px 14px; font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all 0.18s;
+}
+.chip:hover { background: rgba(201,168,76,0.2); border-color: rgba(201,168,76,0.4); color: var(--gold-light); }
+
+/* Bubble rows */
+.row-user { display: flex; justify-content: flex-end; align-items: flex-end; gap: 10px; animation: fadeUp 0.25s ease; }
+.row-bot  { display: flex; justify-content: flex-start; align-items: flex-end; gap: 10px; animation: fadeUp 0.25s ease; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+.av {
+  width: 33px; height: 33px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; flex-shrink: 0;
+}
+.av-user { background: linear-gradient(135deg, var(--maroon-dark), var(--maroon-light)); font-size: 11px; font-weight: 700; color: white; }
+.av-bot  { background: linear-gradient(135deg, var(--gold), #B8963E); }
+
+/* FIX: word-break changed from break-word -> normal + overflow-wrap.
+   Also added width: fit-content so a single short word (e.g. "synergy")
+   sizes the bubble to its content instead of being forced to wrap
+   letter-by-letter inside a too-narrow box. */
+.bub-user {
+  background: linear-gradient(135deg, var(--maroon-dark), var(--maroon-light));
+  color: white; padding: 12px 17px;
+  border-radius: 18px 18px 4px 18px;
+  max-width: 100%;
+  min-width: 0;
+  font-size: 14px; line-height: 1.65; box-shadow: var(--shadow-md);
+  word-break: break-word; overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.bub-bot {
+  background: white; color: var(--text);
+  padding: 14px 18px;
+  border-radius: 18px 18px 18px 4px;
+  max-width: 100%;
+  min-width: 0;
+  font-size: 14px; line-height: 1.75; box-shadow: var(--shadow-md);
+  border: 1px solid var(--border);
+  word-break: break-word; overflow-wrap: anywhere;
+}
+.row-user > .bub-user-wrap {
+  max-width: 68%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.row-bot > div:last-child {
+  max-width: 76%;
+  min-width: 0;
+}
+.bub-bot strong { color: var(--maroon-dark); }
+.bub-bot ul { padding-left: 18px; margin: 6px 0; }
+.bub-bot li { margin: 3px 0; }
+.bub-bot h3 { font-size: 14.5px; color: var(--maroon); margin: 8px 0 4px; }
+.bub-bot p { margin: 4px 0; }
+.ts { font-size: 10.5px; color: var(--text-muted); margin-top: 4px; padding: 0 3px; }
+.ts-r { text-align: right; }
+
+/* Typing indicator */
+.typing-indicator {
+  display: flex; align-items: center; gap: 10px;
+  animation: fadeUp 0.25s ease;
+}
+.typing-dots {
+  background: white; border: 1px solid var(--border);
+  border-radius: 18px 18px 18px 4px;
+  padding: 14px 18px; display: flex; gap: 5px; align-items: center;
+  box-shadow: var(--shadow-sm);
+}
+.dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--maroon-light); opacity: 0.4;
+  animation: dotBounce 1.4s infinite;
+}
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dotBounce { 0%,60%,100%{transform:translateY(0);opacity:0.4} 30%{transform:translateY(-6px);opacity:1} }
+
+/* ============================================
+   INPUT BAR
+   ============================================ */
+.input-area {
+  padding: 16px 24px 20px;
+  background: white;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.input-inner {
+  max-width: 780px; margin: 0 auto;
+  display: flex; align-items: center; gap: 10px;
+}
+.input-wrap {
+  flex: 1; display: flex; align-items: center;
+  background: var(--off-white);
+  border: 1.5px solid var(--border);
+  border-radius: 99px; padding: 6px 8px 6px 20px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: var(--shadow-sm);
+}
+.input-wrap:focus-within {
+  border-color: var(--maroon-light);
+  box-shadow: 0 0 0 3px rgba(123,28,28,0.08);
+  background: white;
+}
+.msg-input {
+  flex: 1; border: none; outline: none; background: transparent;
+  font-size: 14px; font-family: 'Plus Jakarta Sans', sans-serif;
+  color: var(--text); padding: 6px 0;
+}
+.msg-input::placeholder { color: var(--text-muted); }
+.send-btn {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--maroon-dark), var(--maroon-light));
+  border: none; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  color: white; font-size: 15px;
+  box-shadow: var(--shadow-md);
+  transition: all 0.2s; flex-shrink: 0;
+}
+.send-btn:hover { transform: scale(1.05); box-shadow: 0 8px 25px rgba(123,28,28,0.35); }
+.send-btn:active { transform: scale(0.97); }
+.send-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.input-footer {
+  text-align: center; font-size: 10.5px; color: var(--text-muted);
+  margin-top: 9px; font-weight: 500; letter-spacing: 0.03em;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 768px) {
+  .sidebar { position: fixed; left: -300px; top: 0; height: 100%; z-index: 999; transition: left 0.3s ease; }
+  .sidebar.open { left: 0; }
+  .hamburger { display: block; }
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 998; }
+  .sidebar-overlay.visible { display: block; }
+  .bub-user, .bub-bot { max-width: 88%; }
+  .messages-area { padding: 16px; }
+  .input-area { padding: 12px 16px 16px; }
+}
+
+/* Gold divider */
+.gold-divider { height: 2px; background: linear-gradient(90deg, transparent, var(--gold), transparent); margin: 12px 0; opacity: 0.3; }
+</style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<div class="app">
+  <!-- ========== SIDEBAR ========== -->
+  <aside class="sidebar" id="sidebar">
+
+    <!-- Brand -->
+    <div class="sidebar-brand">
+      <div class="brand-logo-wrap">
+        <img src="https://www.svimi.org/assets/images/svimsi-logo.png" alt="SVIMS Logo" class="brand-logo" onerror="this.style.display='none'"/>
+        <div>
+          <div class="brand-text-title">CampusBot</div>
+          <div class="brand-text-sub">SVIMS · Indore</div>
+        </div>
+      </div>
+      <div class="status-badge">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">Connecting...</span>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="sidebar-tabs">
+      <div class="stab active" onclick="switchTab('chat')">Chat</div>
+      <div class="stab" onclick="switchTab('contacts')">Contacts</div>
+      <div class="stab" onclick="switchTab('events')">Events</div>
+      <div class="stab" onclick="switchTab('map')">Map</div>
+    </div>
+
+    <!-- Content -->
+    <div class="sidebar-content">
+
+      <!-- CHAT TAB -->
+      <div class="tab-panel active" id="tab-chat">
+        <div class="section-label">Quick Questions</div>
+
+        <div class="expander">
+          <div class="exp-header" onclick="toggleExp(this)">
+            <span>🎓 Academics</span><i class="fa-solid fa-chevron-right chevron"></i>
+          </div>
+          <div class="exp-body">
+            <button class="quick-btn" onclick="sendQ('What courses does SVIMS offer?')"><i class="fa-solid fa-book-open"></i>All Courses</button>
+            <button class="quick-btn" onclick="sendQ('Tell me about BCA program')"><i class="fa-solid fa-laptop-code"></i>BCA Program</button>
+            <button class="quick-btn" onclick="sendQ('Tell me about MBA program')"><i class="fa-solid fa-briefcase"></i>MBA Program</button>
+            <button class="quick-btn" onclick="sendQ('What is the attendance policy?')"><i class="fa-solid fa-calendar-check"></i>Attendance Policy</button>
+            <button class="quick-btn" onclick="sendQ('What is the admission process?')"><i class="fa-solid fa-file-alt"></i>Admission Process</button>
+          </div>
+        </div>
+
+        <div class="expander">
+          <div class="exp-header" onclick="toggleExp(this)">
+            <span>💼 Placement</span><i class="fa-solid fa-chevron-right chevron"></i>
+          </div>
+          <div class="exp-body">
+            <button class="quick-btn" onclick="sendQ('Tell me about Placement Cell at SVIMS')"><i class="fa-solid fa-building"></i>Placement Cell</button>
+            <button class="quick-btn" onclick="sendQ('Top recruiters at SVIMS')"><i class="fa-solid fa-star"></i>Top Recruiters</button>
+            <button class="quick-btn" onclick="sendQ('How many students got placed from SVIMS?')"><i class="fa-solid fa-chart-bar"></i>Placement Stats</button>
+            <button class="quick-btn" onclick="sendQ('What is the Training Placement Policy?')"><i class="fa-solid fa-file-contract"></i>T&P Policy</button>
+          </div>
+        </div>
+
+        <div class="expander">
+          <div class="exp-header" onclick="toggleExp(this)">
+            <span>🏛️ Facilities</span><i class="fa-solid fa-chevron-right chevron"></i>
+          </div>
+          <div class="exp-body">
+            <button class="quick-btn" onclick="sendQ('What are library timings and resources?')"><i class="fa-solid fa-book"></i>Library</button>
+            <button class="quick-btn" onclick="sendQ('Tell me about hostel facilities')"><i class="fa-solid fa-bed"></i>Hostel</button>
+            <button class="quick-btn" onclick="sendQ('What labs are available at SVIMS?')"><i class="fa-solid fa-flask"></i>Laboratories</button>
+            <button class="quick-btn" onclick="sendQ('Tell me about sports facilities')"><i class="fa-solid fa-futbol"></i>Sports</button>
+            <button class="quick-btn" onclick="sendQ('Tell me about canteen and health centre')"><i class="fa-solid fa-utensils"></i>Canteen & Health</button>
+          </div>
+        </div>
+
+        <div class="expander">
+          <div class="exp-header" onclick="toggleExp(this)">
+            <span>👨‍🏫 Faculty</span><i class="fa-solid fa-chevron-right chevron"></i>
+          </div>
+          <div class="exp-body">
+            <button class="quick-btn" onclick="sendQ('Who is the Director of SVIMS?')"><i class="fa-solid fa-user-tie"></i>Director</button>
+            <button class="quick-btn" onclick="sendQ('Who are all the department heads at SVIMS?')"><i class="fa-solid fa-users"></i>Department Heads</button>
+            <button class="quick-btn" onclick="sendQ('List all faculty members of SVIMS')"><i class="fa-solid fa-chalkboard-teacher"></i>All Faculty</button>
+            <button class="quick-btn" onclick="sendQ('HOD of Computer Science department')"><i class="fa-solid fa-computer"></i>CS HOD</button>
+          </div>
+        </div>
+
+        <div class="expander">
+          <div class="exp-header" onclick="toggleExp(this)">
+            <span>💰 Fees & Scholarship</span><i class="fa-solid fa-chevron-right chevron"></i>
+          </div>
+          <div class="exp-body">
+            <button class="quick-btn" onclick="sendQ('What is the fee structure for all courses?')"><i class="fa-solid fa-indian-rupee-sign"></i>Fee Structure</button>
+            <button class="quick-btn" onclick="sendQ('What scholarships are available at SVIMS?')"><i class="fa-solid fa-award"></i>Scholarships</button>
+            <button class="quick-btn" onclick="sendQ('How to pay fees online at SVIMS?')"><i class="fa-solid fa-credit-card"></i>Online Fee Payment</button>
+          </div>
+        </div>
+
+        <div class="expander">
+          <div class="exp-header" onclick="toggleExp(this)">
+            <span>🎭 Clubs & Events</span><i class="fa-solid fa-chevron-right chevron"></i>
+          </div>
+          <div class="exp-body">
+            <button class="quick-btn" onclick="sendQ('What clubs and activities are available at SVIMS?')"><i class="fa-solid fa-users-gear"></i>All Clubs</button>
+            <button class="quick-btn" onclick="sendQ('Tell me about EDC Cell and Nav Udyami')"><i class="fa-solid fa-lightbulb"></i>EDC Cell</button>
+            <button class="quick-btn" onclick="sendQ('When is Prabandhotsav annual fest?')"><i class="fa-solid fa-music"></i>Prabandhotsav</button>
+            <button class="quick-btn" onclick="sendQ('Tell me about NSS Cell at SVIMS')"><i class="fa-solid fa-hand-holding-heart"></i>NSS Cell</button>
+          </div>
+        </div>
+
+        <div class="expander">
+          <div class="exp-header" onclick="toggleExp(this)">
+            <span>📋 FAQs & Policies</span><i class="fa-solid fa-chevron-right chevron"></i>
+          </div>
+          <div class="exp-body">
+            <button class="quick-btn" onclick="sendQ('Show me all FAQs about SVIMS')"><i class="fa-solid fa-circle-question"></i>General FAQs</button>
+            <button class="quick-btn" onclick="sendQ('Academic FAQs about SVIMS courses')"><i class="fa-solid fa-graduation-cap"></i>Academic FAQs</button>
+            <button class="quick-btn" onclick="sendQ('What is the dress code at SVIMS?')"><i class="fa-solid fa-shirt"></i>Dress Code</button>
+            <button class="quick-btn" onclick="sendQ('Tell me about anti-ragging committee')"><i class="fa-solid fa-shield-halved"></i>Anti-Ragging</button>
+          </div>
+        </div>
+
+        <div class="expander">
+          <div class="exp-header" onclick="toggleExp(this)">
+            <span>📅 Exams & Results</span><i class="fa-solid fa-chevron-right chevron"></i>
+          </div>
+          <div class="exp-body">
+            <button class="quick-btn" onclick="sendQ('How to check exam notifications at SVIMS?')"><i class="fa-solid fa-bell"></i>Notifications</button>
+            <button class="quick-btn" onclick="sendQ('How to check exam time table?')"><i class="fa-solid fa-calendar"></i>Time Table</button>
+            <button class="quick-btn" onclick="sendQ('How to check results at SVIMS?')"><i class="fa-solid fa-trophy"></i>Results</button>
+            <button class="quick-btn" onclick="sendQ('Academic calendar for SVIMS')"><i class="fa-solid fa-calendar-days"></i>Academic Calendar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTACTS TAB -->
+      <div class="tab-panel" id="tab-contacts">
+        <div class="contact-card">
+        <div class="contact-card">
+          <div class="contact-card-title">Main Office</div>
+          <div class="contact-row">📧 svimi@svimi.org</div>
+          <div class="contact-row">📞 +91-731-2789925</div>
+          <div class="contact-row">🆓 1800-233-2601</div>
+        </div>
+        <div class="contact-card">
+          <div class="contact-card-title">Admission</div>
+          <div class="contact-row">📧 admission@svimi.org</div>
+          <div class="contact-row">📞 9329912587 (UG)</div>
+          <div class="contact-row">📞 9329912582 (MBA)</div>
+          <div class="contact-row">💬 WhatsApp: 9329912587</div>
+        </div>
+        <div class="contact-card">
+          <div class="contact-card-title">Emergency & Support</div>
+          <div class="contact-row">🏥 Medical: 9301527178</div>
+          <div class="contact-row">🤝 Student Welfare: 7312580137</div>
+          <div class="contact-row">📝 Exam Controller: 7312518030</div>
+          <div class="contact-row">📞 Enquiry: 7312580157</div>
+        </div>
+        <div class="contact-card">
+          <div class="contact-card-title">Online Portals</div>
+          <div class="contact-row">🎓 Student ERP: accsoft.svimi.org</div>
+          <div class="contact-row">💰 Fee Payment: accsoft.svimi.org</div>
+          <div class="contact-row">📚 LMS: accsoft.svimi.org</div>
+        </div>
+      </div>
+
+      <!-- EVENTS TAB -->
+      <div class="tab-panel" id="tab-events">
+        <div class="section-label">Academic Calendar</div>
+        <div class="event-row"><div class="event-month" style="color:#60A5FA">Jul</div><div><div class="event-name">Admissions Open</div><div class="event-type">Admission</div></div><div class="event-dot" style="background:#60A5FA"></div></div>
+        <div class="event-row"><div class="event-month" style="color:#34D399">Aug</div><div><div class="event-name">Abhisanskaran</div><div class="event-type">Induction Ceremony</div></div><div class="event-dot" style="background:#34D399"></div></div>
+        <div class="event-row"><div class="event-month" style="color:#A78BFA">Oct</div><div><div class="event-name">Internal Exams</div><div class="event-type">Academics</div></div><div class="event-dot" style="background:#A78BFA"></div></div>
+        <div class="event-row"><div class="event-month" style="color:#F472B6">Nov</div><div><div class="event-name">Srijan</div><div class="event-type">Cultural Event</div></div><div class="event-dot" style="background:#F472B6"></div></div>
+        <div class="event-row"><div class="event-month" style="color:#4ADE80">Jan</div><div><div class="event-name">Khelotsav</div><div class="event-type">Sports Event</div></div><div class="event-dot" style="background:#4ADE80"></div></div>
+        <div class="event-row"><div class="event-month" style="color:#FBBF24">Feb</div><div><div class="event-name">Nav Udyami</div><div class="event-type">Entrepreneurship</div></div><div class="event-dot" style="background:#FBBF24"></div></div>
+        <div class="event-row"><div class="event-month" style="color:#F87171">Mar</div><div><div class="event-name">Prabandhotsav</div><div class="event-type">Annual Fest</div></div><div class="event-dot" style="background:#F87171"></div></div>
+        <div class="event-row"><div class="event-month" style="color:#22D3EE">Mar</div><div><div class="event-name">Confluence</div><div class="event-type">Alumni Meet</div></div><div class="event-dot" style="background:#22D3EE"></div></div>
+        <div class="event-row"><div class="event-month" style="color:#A78BFA">May</div><div><div class="event-name">Final Exams</div><div class="event-type">Academics</div></div><div class="event-dot" style="background:#A78BFA"></div></div>
+      </div>
+
+      <!-- MAP TAB -->
+      <div class="tab-panel" id="tab-map">
+        <div class="map-frame">
+          <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3679.8!2d75.8577!3d22.7196!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3962fd24c9f2e5e5%3A0x5f5b6b6b6b6b6b6b!2sShri%20Vaishnav%20Institute%20of%20Management%20%26%20Science!5e0!3m2!1sen!2sin!4v1234567890" width="100%" height="170" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+        </div>
+        <div style="font-size:11.5px;color:rgba(255,255,255,0.45);line-height:1.6;margin-bottom:12px;">📍 Scheme No.71, Gumasta Nagar<br>Indore – 452009, Madhya Pradesh</div>
+        <a href="https://clickeffect.co.in/svims" target="_blank" class="map-btn map-btn-tour">🏛️ Virtual Campus Tour</a>
+        <a href="https://maps.google.com/?q=Shri+Vaishnav+Institute+Management+Science+Indore" target="_blank" class="map-btn map-btn-gmaps">🗺️ Open in Google Maps</a>
+      </div>
+
+    </div><!-- end sidebar-content -->
+
+    <!-- Sidebar Actions -->
+    <div class="sidebar-actions">
+      <button class="action-btn action-btn-clear" onclick="clearChat()">🗑️ Clear Chat</button>
+      <button class="action-btn action-btn-save" onclick="saveChat()">💾 Save Chat</button>
+    </div>
+
+  </aside><!-- end sidebar -->
+
+  <!-- ========== MAIN ========== -->
+  <div class="main">
+
+    <!-- Header -->
+    <header class="chat-header">
+      <div class="header-left">
+        <button class="hamburger" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+        <div class="header-icon">🎓</div>
+        <div>
+          <div class="header-title">SVIMS <span>CampusBot</span></div>
+          <div class="header-sub">Shri Vaishnav Institute of Management & Science</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="live-badge" id="live-badge">Active</div>
+      </div>
+    </header>
+
+    <!-- Messages -->
+    <div class="messages-area" id="messages-area">
+      <div class="messages-inner" id="messages-inner">
+
+        <!-- Welcome Card -->
+        <div class="welcome-card" id="welcome-card">
+          <div class="welcome-title">👋 Hello! I'm SVIMS CampusBot</div>
+          <div class="welcome-sub">Your intelligent campus assistant for Shri Vaishnav Institute of Management & Science, Indore. Ask me anything — I'm here to help 24/7!</div>
+          <div class="welcome-chips">
+            <span class="chip" onclick="sendQ('What courses does SVIMS offer?')">🎓 Courses</span>
+            <span class="chip" onclick="sendQ('What is the admission process?')">📝 Admission</span>
+            <span class="chip" onclick="sendQ('Tell me about Placement Cell')">💼 Placements</span>
+            <span class="chip" onclick="sendQ('What are library timings?')">📚 Library</span>
+            <span class="chip" onclick="sendQ('What scholarships are available?')">💰 Scholarships</span>
+            <span class="chip" onclick="sendQ('What clubs are available at SVIMS?')">🎭 Clubs</span>
+            <span class="chip" onclick="sendQ('Show me all FAQs about SVIMS')">❓ FAQs</span>
+            <span class="chip" onclick="sendQ('List all faculty members of SVIMS')">👨‍🏫 Faculty</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="input-area">
+      <div class="input-inner">
+        <div class="input-wrap">
+          <input type="text" class="msg-input" id="msg-input"
+            placeholder="Ask about courses, fees, faculty, placements, FAQs..."
+            maxlength="500" autocomplete="off"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"
+          />
+        </div>
+        <button class="send-btn" id="send-btn" onclick="sendMessage()">
+          <i class="fa-solid fa-paper-plane" id="send-icon"></i>
+        </button>
+      </div>
+      <div class="input-footer">SVIMS CampusBot · Powered by Groq AI · www.svimi.org</div>
+    </div>
+
+  </div><!-- end main -->
+</div><!-- end app -->
+
+<script>
+// =============================================
+// CONFIG
+// =============================================
+const API_URL = "http://127.0.0.1:5000/api/chat";
+const SESSION_ID = "session_" + Math.random().toString(36).slice(2,10);
+let isLoading = false;
+let chatHistory = [];
+
+// =============================================
+// INIT
+// =============================================
+document.addEventListener("DOMContentLoaded", () => {
+  checkServerStatus();
+  document.getElementById("msg-input").focus();
+});
+
+async function checkServerStatus() {
+  try {
+    const res = await fetch(API_URL.replace("/api/chat", "/"), {method:"GET"});
+    setStatus(true);
+  } catch {
+    setStatus(false);
+    setTimeout(checkServerStatus, 5000);
+  }
+}
+
+function setStatus(online) {
+  const dot = document.getElementById("status-dot");
+  const text = document.getElementById("status-text");
+  const badge = document.getElementById("live-badge");
+  if (online) {
+    dot.style.background = "#4ADE80";
+    dot.style.boxShadow = "0 0 8px #4ADE80";
+    text.textContent = "Online & Ready";
+    badge.textContent = "Active";
+    badge.style.background = "#ECFDF5";
+    badge.style.color = "#065F46";
+    badge.style.border = "1px solid #A7F3D0";
+  } else {
+    dot.style.background = "#F87171";
+    dot.style.boxShadow = "0 0 8px #F87171";
+    text.textContent = "Connecting...";
+    badge.textContent = "Connecting";
+    badge.style.background = "#FEF2F2";
+    badge.style.color = "#991B1B";
+    badge.style.border = "1px solid #FECACA";
+  }
+}
+
+// =============================================
+// CHAT
+// =============================================
+async function sendMessage() {
+  const input = document.getElementById("msg-input");
+  const msg = input.value.trim();
+  if (!msg || isLoading) return;
+
+  input.value = "";
+  isLoading = true;
+
+  // Hide welcome card
+  const wc = document.getElementById("welcome-card");
+  if (wc) wc.style.display = "none";
+
+  // Add user bubble
+  appendBubble("user", msg);
+  chatHistory.push({role:"user", content:msg});
+
+  // Show typing
+  const typingId = showTyping();
+
+  // Disable send
+  const btn = document.getElementById("send-btn");
+  const icon = document.getElementById("send-icon");
+  btn.disabled = true;
+  icon.className = "fa-solid fa-spinner fa-spin";
+
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({message: msg, session_id: SESSION_ID})
+    });
+
+    if (!res.ok) throw new Error("Server error: " + res.status);
+    const data = await res.json();
+    const answer = data.response || "Sorry, I could not get an answer.";
+
+    removeTyping(typingId);
+    appendBubble("bot", answer);
+    chatHistory.push({role:"assistant", content:answer});
+    setStatus(true);
+
+  } catch (err) {
+    removeTyping(typingId);
+    appendBubble("bot", "⚠️ Could not connect to the server. Please make sure the Python server is running.\n\n📧 svimi@svimi.org | 📞 0731-2789925");
+    setStatus(false);
+  }
+
+  btn.disabled = false;
+  icon.className = "fa-solid fa-paper-plane";
+  isLoading = false;
+  input.focus();
+}
+
+function sendQ(q) {
+  document.getElementById("msg-input").value = q;
+  sendMessage();
+  // Close sidebar on mobile
+  if (window.innerWidth <= 768) toggleSidebar(false);
+}
+
+function appendBubble(role, text) {
+  const area = document.getElementById("messages-inner");
+  const now = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  const row = document.createElement("div");
+
+  if (role === "user") {
+    row.className = "row-user";
+    row.innerHTML = `
+      <div class="bub-user-wrap">
+        <div class="bub-user">${escHtml(text)}</div>
+        <div class="ts ts-r">${now}</div>
+      </div>
+      <div class="av av-user">YOU</div>`;
+  } else {
+    row.className = "row-bot";
+    const parsed = typeof marked !== 'undefined' ? marked.parse(text) : escHtml(text).replace(/\n/g,'<br>');
+    row.innerHTML = `
+      <div class="av av-bot">🎓</div>
+      <div>
+        <div class="bub-bot">${parsed}</div>
+        <div class="ts">${now}</div>
+      </div>`;
+  }
+
+  area.appendChild(row);
+  scrollBottom();
+}
+
+function showTyping() {
+  const area = document.getElementById("messages-inner");
+  const id = "typing_" + Date.now();
+  const el = document.createElement("div");
+  el.className = "typing-indicator";
+  el.id = id;
+  el.innerHTML = `
+    <div class="av av-bot">🎓</div>
+    <div class="typing-dots">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>`;
+  area.appendChild(el);
+  scrollBottom();
+  return id;
+}
+
+function removeTyping(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+function scrollBottom() {
+  const area = document.getElementById("messages-area");
+  area.scrollTop = area.scrollHeight;
+}
+
+function escHtml(t) {
+  return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");
+}
+
+// =============================================
+// SIDEBAR
+// =============================================
+function toggleSidebar(forceClose) {
+  const sb = document.getElementById("sidebar");
+  const ov = document.getElementById("overlay");
+  if (forceClose === false || sb.classList.contains("open")) {
+    sb.classList.remove("open");
+    ov.classList.remove("visible");
+  } else {
+    sb.classList.add("open");
+    ov.classList.add("visible");
+  }
+}
+
+// =============================================
+// TABS
+// =============================================
+function switchTab(name) {
+  document.querySelectorAll(".stab").forEach((t,i) => {
+    const names = ["chat","contacts","events","map"];
+    t.classList.toggle("active", names[i] === name);
+  });
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+  document.getElementById("tab-"+name).classList.add("active");
+}
+
+// =============================================
+// EXPANDERS
+// =============================================
+function toggleExp(header) {
+  header.classList.toggle("open");
+  const body = header.nextElementSibling;
+  body.classList.toggle("open");
+}
+
+// =============================================
+// UTILITIES
+// =============================================
+function clearChat() {
+  if (!confirm("Clear chat history?")) return;
+  chatHistory = [];
+  const area = document.getElementById("messages-inner");
+  area.innerHTML = "";
+  // Restore welcome card
+  const wc = document.createElement("div");
+  wc.className = "welcome-card";
+  wc.id = "welcome-card";
+  wc.innerHTML = `
+    <div class="welcome-title">👋 Hello! I'm SVIMS CampusBot</div>
+    <div class="welcome-sub">Your intelligent campus assistant for Shri Vaishnav Institute of Management & Science, Indore.</div>
+    <div class="welcome-chips">
+      <span class="chip" onclick="sendQ('What courses does SVIMS offer?')">🎓 Courses</span>
+      <span class="chip" onclick="sendQ('What is the admission process?')">📝 Admission</span>
+      <span class="chip" onclick="sendQ('Tell me about Placement Cell')">💼 Placements</span>
+      <span class="chip" onclick="sendQ('What are library timings?')">📚 Library</span>
+      <span class="chip" onclick="sendQ('Show me all FAQs about SVIMS')">❓ FAQs</span>
+      <span class="chip" onclick="sendQ('List all faculty members of SVIMS')">👨‍🏫 Faculty</span>
+    </div>`;
+  area.appendChild(wc);
+}
+
+function saveChat() {
+  if (!chatHistory.length) { alert("No chat to save!"); return; }
+  const txt = chatHistory.map(m => (m.role==="user"?"You: ":"CampusBot: ") + m.content).join("\n\n");
+  const a = document.createElement("a");
+  a.href = "data:text/plain;charset=utf-8," + encodeURIComponent(txt);
+  a.download = "svims_chat_" + new Date().toISOString().slice(0,10) + ".txt";
+  a.click();
+}
+</script>
+</body>
+</html>

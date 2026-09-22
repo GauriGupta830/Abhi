@@ -1,0 +1,88 @@
+{
+  "_comment": "=== SVIMS CampusBot Config === Yahan se sab update karo — engine.py touch mat karo ===",
+
+  "show_staff_phones": false,
+  "_show_staff_phones_note": "false = HOD/Director ke phone numbers chatbot answer mein nahi aayenge (privacy). true = aayenge.",
+
+  "academic_calendar": {
+    "year": "2025-26",
+    "link": "https://www.svimi.org/assets/images/Academic_Calender_2025-26.pdf",
+    "_update_note": "Har saal year aur link dono badlo"
+  },
+
+  "syllabus_links": {
+    "_update_note": "Naya semester PDF aaye to idhar add karo aur engine restart karo",
+    "bca": [
+      {"label": "BCA I Year", "link": "https://www.svimi.org/assets/images/BCA_I_Year_Syllabus.pdf"}
+    ],
+    "bba": [
+      {"label": "BBA II Sem", "link": "https://www.svimi.org/assets/images/BBA_II_Sem_Syllabus.pdf"},
+      {"label": "BBA (Foreign Trade) II Sem", "link": "https://www.svimi.org/assets/images/BBA_(FT)_II_Sem_Syllabus.pdf"},
+      {"label": "BBA (Hospital Admin) II Sem", "link": "https://www.svimi.org/assets/images/BBA_(HA)_II_Sem_Syllabus.pdf"}
+    ],
+    "mba": [
+      {"label": "MBA Full Time", "link": "https://www.svimi.org/assets/images/MBA_FT_Syllabus.pdf"},
+      {"label": "MBA Financial Administration", "link": "https://www.svimi.org/assets/images/MBA_FA_Syllabus.pdf"},
+      {"label": "MBA Marketing Management", "link": "https://www.svimi.org/assets/images/MBA_MM_Syllabus.pdf"}
+    ],
+    "mca": [
+      {"label": "MCA Syllabus", "link": "https://www.svimi.org/assets/images/MCA_Syllabus.pdf"}
+    ],
+    "msc_cs": [
+      {"label": "M.Sc. CS Syllabus", "link": "https://www.svimi.org/assets/images/M.Sc.CS_Syllabus.pdf"}
+    ],
+    "bsc_cs": [
+      {"label": "B.Sc. Computer Science I Year", "link": "https://www.svimi.org/assets/images/B.%20Sc._(CS)_I_Year_Syllabus.pdf"}
+    ],
+    "bsc_bt": [
+      {"label": "B.Sc. Biotechnology I Year", "link": "https://www.svimi.org/assets/images/B.%20Sc._(BT)_I_Year_Syllabus.pdf"}
+    ],
+    "bsc_bi": [
+      {"label": "B.Sc. Bioinformatics I Year", "link": "https://www.svimi.org/assets/images/B.%20Sc._(BI)_I_Year_Syllabus.pdf"}
+    ],
+    "bsc_mb": [
+      {"label": "B.Sc. Microbiology I Year", "link": "https://www.svimi.org/assets/images/B.%20Sc._(MB)_I_Year_Syllabus.pdf"}
+    ]
+  },
+
+  "achievement_links": {
+    "_update_note": "Har saal college naya PDF upload kare to idhar update karo",
+    "student_year": "2024-25",
+    "student": "https://www.svimi.org/assets/images/achievements/Student_Achievements_2024-25.pdf",
+    "faculty_year": "2024-25",
+    "faculty": "https://www.svimi.org/assets/images/achievements/Faculty_Other_Achievement_2024-25.pdf"
+  },
+
+  "fees": {
+    "_update_note": "Fees change hone par sirf idhar badlo",
+    "bba_per_year": "Rs. 80,000",
+    "bca_per_year": "Rs. 60,000",
+    "bsc_per_year": "Rs. 40,000",
+    "mba_dual_per_sem": "Rs. 43,000",
+    "mba_fa_per_sem": "Rs. 40,500",
+    "mba_mm_per_sem": "Rs. 30,000",
+    "mca_per_sem": "Rs. 27,500",
+    "msc_cs_per_year": "Rs. 40,000",
+    "caution_money_bba_bca_mba_mca_msc": "Rs. 1,500 (refundable)",
+    "caution_money_bsc": "Rs. 2,000 (refundable)"
+  },
+
+  "attendance_rule": "Minimum 75% in EACH subject — ALL courses",
+
+  "groq_models": [
+    "llama-3.1-8b-instant",
+    "gemma2-9b-it",
+    "llama3-8b-8192",
+    "llama-3.3-70b-versatile"
+  ],
+  "_groq_models_note": "Groq free tier pe ye stable hain. Koi expire ho jaye to idhar se hata do aur naya add karo. Engine restart karo.",
+
+  "custom_links": {
+    "_usage_note": "Naya keyword-link pair add karna ho to idhar daalo — engine.py touch mat karo. Reload-config ya restart karo.",
+    "placement_glimpse": {
+      "keywords": ["placement glimps", "placement glimpse", "placement gallery", "placement photos"],
+      "link": "https://www.svimi.org/placement/placement.php",
+      "label": "Placement Glimpse"
+    }
+  }
+}

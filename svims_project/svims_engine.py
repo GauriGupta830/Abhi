@@ -429,6 +429,9 @@ def _ans_admission(q):
     if not any(w in q for w in ["admission", "apply", "admit", "enroll", "counselling",
                                 "counseling", "cmat"]):
         return None
+    # Contact-number wali queries → _ans_contact handle kare (numbers ke saath)
+    if any(w in q for w in ["contact", "phone", "number", "helpline", "call"]):
+        return None
     if "mba" in q or "cmat" in q:
         return ("**Admission Process — MBA (FT/FA/MM)**\n\n" + F.ADMISSION["pg"] +
                 f"\n\nCounselling portal: {F.ADMISSION['counselling_site']}",
@@ -1162,6 +1165,14 @@ def get_answer(question, vector_store, history=None):
                     f"📧 {F.CONTACTS['email']} | 🆓 {F.CONTACTS['toll_free']}")
         if any(x in err for x in ["invalid_api_key", "401"]):
             return "❌ Groq API key error — .env file mein valid key daalo."
+        if any(x in err for x in ["connection", "getaddrinfo", "network", "timeout",
+                                  "unreachable", "temporary failure", "ssl",
+                                  "apiconnection"]):
+            return ("🌐 AI service tak nahi pahunch pa raha — internet connection "
+                    "check karo (WiFi/VPN/firewall).\n\n"
+                    "Basic queries (courses, fees, admission, contacts, "
+                    "scholarships...) ab bhi poori tarah kaam karte hain!\n\n"
+                    f"📧 {F.CONTACTS['email']} | 🌐 www.svimi.org")
         return ("😊 Please rephrase and try again!\n\n"
                 f"📧 {F.CONTACTS['email']} | 🌐 www.svimi.org")
 

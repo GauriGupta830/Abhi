@@ -93,3 +93,32 @@ Browser mein kholo: **http://localhost:5000**
 gunicorn -w 1 -b 0.0.0.0:5000 svims_server:app
 ```
 (1 worker zaroori hai — FAISS + in-memory sessions single process mein hain.)
+
+---
+
+## Troubleshooting
+
+### ❌ "getaddrinfo failed" / internet nahi mil raha
+Naya code **offline-bulletproof** hai — internet na ho to:
+- Server turant start hota hai (**OFFLINE MODE**), crash/hang nahi hota
+- Facts-based answers (courses, fees, admission, contacts, scholarships...) **full chalte hain**
+- Sirf website-scraping aur AI (RAG) answers ke liye internet chahiye
+
+Internet hona chahiye phir bhi error aa raha? Check karo:
+1. WiFi/LAN connected hai? Browser mein `www.svimi.org` khulta hai?
+2. **VPN / proxy / firewall** — college networks Python ke requests block kar sakte hain
+3. Terminal mein test: `ping www.google.com` / `curl https://www.google.com`
+4. Internet wapas aane ke baad full build: `python svims_scraper.py build`
+
+### ❌ "No module named 'svims_processor'" ya "PDF Q&A Database" dikh raha
+Matlab aap **PURANA code** chala rahe ho. Naya code mein `svims_processor.py`,
+`svims_qa_loader.py`, `svims_app.py` — in files ka exist hona hi galat hai.
+Fresh download karo (upar ka link) aur purana folder delete kar do.
+
+### ⚠️ First run slow hai?
+Pehli baar embedding model (~90 MB) download hota hai. Uske baad seconds mein
+start hota hai. Model ek baar cache ho gaya to offline bhi index ban jaata hai.
+
+### Groq "Server busy" / rate limit?
+Multiple free keys daalo — `.env` mein `GROQ_API_KEY_1`, `GROQ_API_KEY_2`, ...
+Engine automatically rotate karta hai.

@@ -17,6 +17,7 @@ NAYA SERVER:
 """
 
 import os
+import time
 import threading
 
 from flask import Flask, request, jsonify, send_from_directory
@@ -181,13 +182,34 @@ def model_status():
     })
 
 
+def _periodic_refresh():
+    """Background daemon — har 30 min mein check karo: dynamic pages
+    (notifications/results/time tables/events) 12+ ghante purani ho gayi
+    hain to www.svimi.org se re-scrape + index rebuild. Offline → fast-skip."""
+    while True:
+        time.sleep(30 * 60)
+        try:
+            if svims_scraper.auto_refresh_if_stale(quiet=True):
+                new_vs = svims_scraper.rebuild_after_refresh()
+                if new_vs is not None:
+                    global _vector_store
+                    _vector_store = new_vs
+                    print("🔄 Auto-refresh: dynamic pages updated from www.svimi.org")
+        except Exception as e:
+            print(f"  ⚠️ Auto-refresh failed: {e}")
+
+
 # ─────────────────────────────────────────────
 # STARTUP
 # ─────────────────────────────────────────────
 print("⚙️  SVIMS CampusBot Server starting...")
 print(f"   Groq API keys: {len(svims_engine.GROQ_API_KEYS)} "
       f"({'✅' if svims_engine.groq_ready() else '⚠️ none — set GROQ_API_KEY_1 in .env'})")
+if not svims_scraper.check_connectivity():
+    print("   ⚠️ Internet not reachable — starting in OFFLINE MODE "
+          "(facts answers work, scraping/AI need internet)")
 threading.Thread(target=_background_init, daemon=True).start()
+threading.Thread(target=_periodic_refresh, daemon=True).start()
 
 if __name__ == "__main__":
     # Production: gunicorn -w 1 -b 0.0.0.0:5000 svims_server:app

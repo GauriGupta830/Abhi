@@ -5,37 +5,41 @@ PURANE ARCHITECTURE MEIN KYA PROBLEM THI:
   — Sirf 7 pages scrape hote the, text 4000 chars pe truncate ho jaata tha
   — Har rebuild pe dobara scrape (koi caching nahi)
   — PDF (SVIMS_database.pdf) pe poora dependency — PDF na ho to KB khaali
+  — Internet na ho to 5+ minute HF retries ke baad CRASH
 
 NAYA DESIGN:
-  1. SITEMAP — svimi.org ke ~55 official pages (static + dynamic)
-  2. crawl()      → saare pages scrape karke knowledge/site_pages.json mein cache
+  1. check_connectivity() → pehle quick internet check (6 sec max).
+     Internet nahi? → scraping + model download skip, OFFLINE MODE
+     (server turant start hota hai, facts-based answers full chalte hain)
+  2. crawl()      → saare pages PARALLEL scrape karke knowledge/site_pages.json
+                    mein cache (48 pages ~30 sec mein, pehle 10+ min lagte the)
   3. refresh()    → sirf DYNAMIC pages (notifications, results, time tables,
                     events, placements) dobara scrape — fast update
   4. build_index()→ verified facts (svims_facts.py) + scraped pages → FAISS index
-  5. Agar internet/site na mile → cached JSON + facts se hi KB banti hai
-     (bot offline bhi core queries ka jawab de sakta hai)
+  5. Agar website/site na mile → cached JSON + facts se hi KB banti hai
 
 USAGE:
   python svims_scraper.py build     # full crawl + FAISS build
   python svims_scraper.py refresh   # sirf dynamic pages refresh + rebuild
-  python svims_scraper.py status    # cache/health info
+  python svims_scraper.py status    # cache/health/internet info
 """
 
 import os
-import io
 import sys
 import json
 import time
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 KNOWLEDGE_DIR = os.path.join(BASE_DIR, "knowledge")
 SITE_CACHE_PATH = os.path.join(KNOWLEDGE_DIR, "site_pages.json")
 FAISS_PATH = os.path.join(BASE_DIR, "faiss_index")
 
+_CACHE_LOCK = threading.Lock()
+
 # ══════════════════════════════════════════════════════════════════
 # SITEMAP — official pages of www.svimi.org
-#   * = dynamic (regularly change → refresh() inko dobara scrape karta hai)
 # ══════════════════════════════════════════════════════════════════
 SITEMAP = {
     # Home & About
@@ -134,10 +138,46 @@ def _load_cfg():
 
 
 # ══════════════════════════════════════════════════════════════════
+# CONNECTIVITY CHECK — no internet to fast-fail (10 min hang se bacho)
+# ══════════════════════════════════════════════════════════════════
+_CONNECTIVITY = {"checked_at": 0.0, "online": None}
+
+
+def check_connectivity(timeout=6, force=False):
+    """
+    Quick internet check. Result 60 sec ke liye cache hota hai.
+    svimi.org pehle try karte hain (asli target), phir google (general net).
+    """
+    now = time.time()
+    if (not force and _CONNECTIVITY["online"] is not None
+            and (now - _CONNECTIVITY["checked_at"]) < 60):
+        return _CONNECTIVITY["online"]
+
+    online = False
+    try:
+        import requests
+        for url in ("https://www.svimi.org/", "https://www.google.com/",
+                    "https://huggingface.co/"):
+            try:
+                r = requests.head(url, headers=_HEADERS, timeout=timeout,
+                                  allow_redirects=True)
+                if r.status_code < 500:
+                    online = True
+                    break
+            except Exception:
+                continue
+    except Exception:
+        online = False
+
+    _CONNECTIVITY.update(checked_at=now, online=online)
+    return online
+
+
+# ══════════════════════════════════════════════════════════════════
 # PAGE SCRAPING
 # ══════════════════════════════════════════════════════════════════
 
-def scrape_page(url, title="", max_chars=8000, timeout=12):
+def scrape_page(url, title="", max_chars=8000, timeout=10):
     """Ek page scrape karke saaf text return karo. Fail ho to None."""
     import requests
     from bs4 import BeautifulSoup
@@ -150,18 +190,17 @@ def scrape_page(url, title="", max_chars=8000, timeout=12):
 
         soup = BeautifulSoup(resp.text, "html.parser")
 
-        # Navigation/footer/script/style/advice hatao — content hi chahiye
+        # Navigation/footer/script/style hatao — content hi chahiye
         for tag in soup(["script", "style", "nav", "footer", "header",
                          "noscript", "iframe", "form", "button"]):
             tag.decompose()
 
         text = soup.get_text(separator="\n")
-        # Blank lines hatao aur har line trim karo
         lines = [ln.strip() for ln in text.split("\n")]
         lines = [ln for ln in lines if ln and len(ln) > 1]
         text = "\n".join(lines)
 
-        # B heading noise hatao (footer copyright etc. repeat hota hai)
+        # Footer noise hatao (copyright etc. repeat hota hai)
         for noise in ["Copyright ©", "All rights reserved", "Designed & Developed",
                       "Follow Us", "Quick Links", "Get in Touch"]:
             if noise in text:
@@ -185,48 +224,65 @@ def scrape_page(url, title="", max_chars=8000, timeout=12):
 
 
 def _load_cache():
-    if os.path.exists(SITE_CACHE_PATH):
-        try:
-            with open(SITE_CACHE_PATH, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return {}
+    with _CACHE_LOCK:
+        if os.path.exists(SITE_CACHE_PATH):
+            try:
+                with open(SITE_CACHE_PATH, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                return {}
     return {}
 
 
 def _save_cache(cache):
-    os.makedirs(KNOWLEDGE_DIR, exist_ok=True)
-    with open(SITE_CACHE_PATH, "w", encoding="utf-8") as f:
-        json.dump(cache, f, ensure_ascii=False, indent=1)
+    with _CACHE_LOCK:
+        os.makedirs(KNOWLEDGE_DIR, exist_ok=True)
+        tmp = SITE_CACHE_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(cache, f, ensure_ascii=False, indent=1)
+        os.replace(tmp, SITE_CACHE_PATH)   # atomic-ish write
 
 
-def crawl(urls=None, quiet=False):
-    """Diye gaye URLs (default: pura SITEMAP) scrape karke cache update karo."""
+def crawl(urls=None, quiet=False, max_workers=5, skip_connectivity_check=False):
+    """
+    Diye gaye URLs (default: pura SITEMAP) PARALLEL scrape karke cache
+    update karo. Internet nahi hai to fast-return (purana cache wapas).
+    """
     cfg = _load_cfg()
-    timeout = cfg.get("request_timeout", 12)
-    delay = cfg.get("delay_between_requests", 0.4)
+    timeout = cfg.get("request_timeout", 10)
     max_chars = cfg.get("max_page_chars", 8000)
 
+    # ── No internet? → 48 × timeout ka wait NE karo ──
+    if not skip_connectivity_check and not check_connectivity():
+        if not quiet:
+            print("  ⚠️ Internet reachable nahi — scraping skipped")
+            print("     (cached data + hardcoded facts use honge)")
+        return _load_cache()
+
     targets = urls or list(SITEMAP.keys())
-    cache = _load_cache()
+    results = {}
 
-    ok, fail = 0, 0
-    for i, url in enumerate(targets):
+    def _worker(url):
         title = SITEMAP.get(url, "")
-        page = scrape_page(url, title, max_chars=max_chars, timeout=timeout)
-        if page:
-            cache[url] = page
-            ok += 1
-            if not quiet:
-                print(f"  ✅ [{i+1}/{len(targets)}] {title or url}")
-        else:
-            fail += 1
-        if delay and i < len(targets) - 1:
-            time.sleep(delay)
+        return scrape_page(url, title, max_chars=max_chars, timeout=timeout)
 
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {pool.submit(_worker, u): u for u in targets}
+        for fut in as_completed(futures):
+            url = futures[fut]
+            try:
+                page = fut.result()
+            except Exception:
+                page = None
+            if page:
+                results[url] = page
+
+    cache = _load_cache()
+    cache.update(results)
     _save_cache(cache)
     if not quiet:
-        print(f"  📊 Crawled: {ok} OK, {fail} failed (cached pages: {len(cache)})")
+        print(f"  📊 Crawled: {len(results)}/{len(targets)} OK "
+              f"(total cached: {len(cache)})")
     return cache
 
 
@@ -244,8 +300,8 @@ def _needs_refresh(cache, url, max_age_hours):
 
 
 def auto_refresh_if_stale(quiet=True):
-    """Agar dynamic pages purane ho gaye hain (config ke hisaab se) to refresh karo.
-    Server har chat request pe ise call kar sakta hai — internally throttled."""
+    """Dynamic pages purani ho gayi hain (config ke hisaab se) to refresh karo.
+    Offline hone par fast-skip. Return True agar refresh hua."""
     cfg = _load_cfg()
     max_age = cfg.get("auto_refresh_hours", 12)
     cache = _load_cache()
@@ -273,7 +329,6 @@ def get_dynamic_summary(url, max_items=6):
         return None
     text = page["text"]
 
-    # Notification/Results pages pe items 'Notice...' / dated links jaise hote hain
     items = []
     for ln in text.split("\n"):
         ln = ln.strip()
@@ -288,7 +343,6 @@ def get_dynamic_summary(url, max_items=6):
             break
 
     if not items:
-        # Fallback — peeli non-boilerplate lines
         items = [ln for ln in text.split("\n")
                  if len(ln) > 15 and "svimi.org" not in ln][:max_items]
 
@@ -313,7 +367,6 @@ def _split_long_text(text, chunk_size=900, overlap=120):
     start = 0
     while start < len(text):
         end = min(start + chunk_size, len(text))
-        # Word boundary pe kato
         if end < len(text):
             cut = text.rfind(" ", start + chunk_size - 150, end)
             if cut > start:
@@ -348,6 +401,18 @@ def build_knowledge_docs():
                 docs.append(header + chunk)
 
     return docs
+
+
+def _embedding_model_available():
+    """Embedding model cache mein hai ya nahi (bina download ke check)."""
+    try:
+        from huggingface_hub import scan_cache_dir
+        for repo in scan_cache_dir().repos:
+            if "all-MiniLM-L6-v2" in repo.repo_id:
+                return True
+    except Exception:
+        pass
+    return False
 
 
 def build_index(quiet=False):
@@ -387,19 +452,44 @@ def load_index():
 
 def ensure_knowledge_base(crawl_first=True, quiet=False):
     """
-    Server startup ke liye main entry:
-      1. FAISS index hai? → load karo
-      2. Nahi hai → (best-effort crawl) + build
-    Koi bhi step fail ho → facts-only docs se index banao.
-    Kabhi bhi exception bahar nahi jaata.
+    Server startup ke liye main entry — NEVER crashes, NEVER hangs:
+      1. Internet check FIRST (6 sec) — offline to seedha facts-only mode
+      2. FAISS index hai? → load karo
+      3. Nahi hai → (best-effort crawl) + build
+    Offline hone par HF offline flags set hote hain taaki model-download
+    5+ minute retry na kare — instant fail-fast.
     """
+    # ── STEP 1: connectivity (sabse pehle — load_index se bhi pehle,
+    #    kyunki load_index embedding model download try kar sakta hai) ──
+    online = check_connectivity()
+    if not online:
+        os.environ.setdefault("HF_HUB_OFFLINE", "1")
+        os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+        print("  ⚠️ Internet NOT reachable — OFFLINE MODE")
+        print("     • Website scraping: skipped")
+        print("     • Facts-based answers (fees/courses/contacts/admission...): FULL")
+        print("     • AI (RAG) answers: internet wapas aane pe")
+        print("     • Internet aane ke baad full build: python svims_scraper.py build")
+
+        # Model pehle se cached hai? → offline index ban sakta hai
+        try:
+            vs = load_index()
+            if vs is not None:
+                return vs
+            if _embedding_model_available():
+                return build_index(quiet=True)
+        except Exception:
+            pass
+        return None
+
+    # ── STEP 2: online — normal flow ──
     vs = load_index()
     if vs is not None:
         return vs
 
     if crawl_first:
         try:
-            crawl(quiet=quiet)
+            crawl(quiet=quiet, skip_connectivity_check=True)
         except Exception as e:
             print(f"  ⚠️ Crawl failed ({e}) — building from facts only")
 
@@ -411,7 +501,7 @@ def ensure_knowledge_base(crawl_first=True, quiet=False):
 
 
 def rebuild_after_refresh():
-    """Dynamic refresh ke baad index rebuild (thread-safe call ke liye)."""
+    """Dynamic refresh ke baad index rebuild."""
     return build_index(quiet=True)
 
 
@@ -428,6 +518,8 @@ def status():
         "faiss_index": has_index,
         "last_scrape": time.strftime("%Y-%m-%d %H:%M", time.localtime(newest)) if newest else None,
         "sitemap_pages": len(SITEMAP),
+        "internet": check_connectivity(),
+        "embedding_model_cached": _embedding_model_available(),
     }
 
 
@@ -440,7 +532,11 @@ if __name__ == "__main__":
 
     if cmd == "build":
         print("🔄 Full crawl + knowledge base build...")
-        crawl()
+        if not check_connectivity():
+            print("❌ Internet nahi mil raha — scraping ke liye internet chahiye.")
+            print("   Check: WiFi/LAN connected? VPN/proxy/firewall? 'ping www.google.com'")
+            sys.exit(1)
+        crawl(skip_connectivity_check=True)
         build_index()
         print("✅ Done.")
     elif cmd == "refresh":

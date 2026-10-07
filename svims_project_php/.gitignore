@@ -1,0 +1,10 @@
+.env
+faiss_index/
+svims_qa_cache.pkl
+*.pkl
+svims_sessions/
+svims_sessions_app/
+svims_runtime/
+college_docs/
+.DS_Store
+Thumbs.db
